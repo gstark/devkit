@@ -117,8 +117,9 @@ func newServices() *cobra.Command {
 	up.Flags().StringVar(&upProfile, "profile", "dev", "profile to run")
 
 	var startProfile, startFormat string
-	var ephemeral bool
+	var ephemeral, reuse bool
 	var owner int
+	var only []string
 	start := &cobra.Command{
 		Use:   "start",
 		Short: "Start the services detached and print their env; stop them with `devkit services stop`",
@@ -146,7 +147,7 @@ directories, which stop removes.`,
 				ownerPID = os.Getppid()
 			}
 			pidPath := a.Manifest.StatePath(fmt.Sprintf("%s-%d.pids.json", plan.Profile, ownerPID))
-			pidFile, err := services.Start(context.Background(), plan, a.Manifest.Root, pidPath, owner, cmd.ErrOrStderr())
+			pidFile, err := services.Start(context.Background(), plan, a.Manifest.Root, pidPath, services.StartOptions{Owner: owner, Reuse: reuse, Only: only}, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
@@ -156,6 +157,8 @@ directories, which stop removes.`,
 	start.Flags().StringVar(&startProfile, "profile", "dev", "profile to run")
 	start.Flags().StringVar(&startFormat, "format", "json", "output format: json or sh")
 	start.Flags().BoolVar(&ephemeral, "ephemeral", false, "random free ports and temporary data directories")
+	start.Flags().BoolVar(&reuse, "reuse", false, "skip a service that already answers on its port, and leave it running on stop")
+	start.Flags().StringSliceVar(&only, "only", nil, "start only these services (comma separated)")
 	start.Flags().IntVar(&owner, "owner", 0, "pid the servers belong to, for --stale (default: the parent process; pass $$ from a shell script)")
 
 	var stale, all bool

@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -24,7 +26,21 @@ import (
 // $$, because `$(devkit services start ...)` runs devkit in a subshell that
 // exits at once. On any failure the servers already started are
 // stopped again.
-func Start(ctx context.Context, plan *resolve.Plan, root, pidPath string, owner int, out io.Writer) (*proc.PidFile, error) {
+// StartOptions tunes Start.
+type StartOptions struct {
+	// Owner is the pid the servers belong to. Zero means devkit's parent.
+	Owner int
+	// Reuse skips a service whose ready URL already answers instead of
+	// failing to bind its port. The running server is not recorded, so Stop
+	// leaves it alone. `just seed-dev-db` uses the RustFS of a running
+	// `just dev` this way.
+	Reuse bool
+	// Only limits the start to these services.
+	Only []string
+}
+
+func Start(ctx context.Context, plan *resolve.Plan, root, pidPath string, opts StartOptions, out io.Writer) (*proc.PidFile, error) {
+	owner := opts.Owner
 	if owner <= 0 {
 		owner = os.Getppid()
 	}
@@ -32,6 +48,13 @@ func Start(ctx context.Context, plan *resolve.Plan, root, pidPath string, owner 
 	for _, service := range plan.Services {
 		if !service.Enabled {
 			fmt.Fprintf(out, "%s: not starting, %s.\n", service.Name, service.SkipReason)
+			continue
+		}
+		if len(opts.Only) > 0 && !slices.Contains(opts.Only, service.Name) {
+			continue
+		}
+		if opts.Reuse && answers(service.ReadyURL) {
+			fmt.Fprintf(out, "%s: already running on port %d, reusing it.\n", service.Name, service.Port)
 			continue
 		}
 		if err := requireBinary(service); err != nil {
@@ -253,4 +276,15 @@ func logTail(path string) string {
 		lines = lines[len(lines)-8:]
 	}
 	return "\n  " + strings.Join(lines, "\n  ")
+}
+
+// answers reports whether url already returns 2xx.
+func answers(url string) bool {
+	client := &http.Client{Timeout: time.Second}
+	response, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	response.Body.Close()
+	return response.StatusCode >= 200 && response.StatusCode < 300
 }

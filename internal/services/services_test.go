@@ -50,7 +50,7 @@ func TestRustfsStartCreatesBucketsAndStopCleansUp(t *testing.T) {
 	})
 	pidPath := filepath.Join(plan.Services[0].DataDir, "..", "s3.pids.json")
 	var out bytes.Buffer
-	pidFile, err := Start(context.Background(), plan, t.TempDir(), pidPath, 0, &out)
+	pidFile, err := Start(context.Background(), plan, t.TempDir(), pidPath, StartOptions{}, &out)
 	if err != nil {
 		t.Fatalf("start: %v\n%s", err, out.String())
 	}
@@ -96,7 +96,7 @@ func TestLivekitStartWritesConfig(t *testing.T) {
 		"livekit": {Preset: manifest.PresetLivekit, DefaultPort: 7880, LoopbackOnly: &loopback},
 	})
 	var out bytes.Buffer
-	pidFile, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(t.TempDir(), "lk.pids.json"), 0, &out)
+	pidFile, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(t.TempDir(), "lk.pids.json"), StartOptions{}, &out)
 	if err != nil {
 		t.Fatalf("start: %v\n%s", err, out.String())
 	}
@@ -122,14 +122,14 @@ func TestStopStaleOnlyTouchesDeadOwners(t *testing.T) {
 	})
 	stateDir := t.TempDir()
 	var out bytes.Buffer
-	alive, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(stateDir, "alive.pids.json"), os.Getpid(), &out)
+	alive, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(stateDir, "alive.pids.json"), StartOptions{Owner: os.Getpid()}, &out)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer Stop(alive, &out)
 
 	plan2 := ephemeralPlan(t, map[string]manifest.Service{"s3": {Preset: manifest.PresetRustfs, DefaultPort: 9000}})
-	dead, err := Start(context.Background(), plan2, t.TempDir(), filepath.Join(stateDir, "dead.pids.json"), 999_999, &out)
+	dead, err := Start(context.Background(), plan2, t.TempDir(), filepath.Join(stateDir, "dead.pids.json"), StartOptions{Owner: 999_999}, &out)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,5 +156,40 @@ func TestDoctorReportsMissingBinary(t *testing.T) {
 	}
 	if !bytes.Contains(out.Bytes(), []byte("MISSING")) || !bytes.Contains(out.Bytes(), []byte("nothing")) {
 		t.Errorf("doctor output:\n%s", out.String())
+	}
+}
+
+func TestReuseSkipsARunningServerAndOnlyLimitsTheStart(t *testing.T) {
+	skipWithout(t, "rustfs")
+	plan := ephemeralPlan(t, map[string]manifest.Service{
+		"s3":    {Preset: manifest.PresetRustfs, DefaultPort: 9000},
+		"ghost": {DefaultPort: 5000, Ports: manifest.PortCount{TCP: 1}, Command: []string{"devkit-no-such-binary"}, ReadyURL: "http://127.0.0.1:{port}/"},
+	})
+	var out bytes.Buffer
+	first, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(t.TempDir(), "a.pids.json"), StartOptions{Only: []string{"s3"}}, &out)
+	if err != nil {
+		t.Fatalf("start with --only: %v\n%s", err, out.String())
+	}
+	defer Stop(first, &out)
+	if len(first.Services) != 1 || first.Services[0].Name != "s3" {
+		t.Fatalf("only s3 should start: %+v", first.Services)
+	}
+
+	// The same plan again, so the same port: without Reuse rustfs cannot bind.
+	second, err := Start(context.Background(), plan, t.TempDir(), filepath.Join(t.TempDir(), "b.pids.json"), StartOptions{Only: []string{"s3"}, Reuse: true}, &out)
+	if err != nil {
+		t.Fatalf("start with --reuse: %v\n%s", err, out.String())
+	}
+	if len(second.Services) != 0 {
+		t.Errorf("a reused server must not be recorded: %+v", second.Services)
+	}
+	if !bytes.Contains(out.Bytes(), []byte("reusing it")) {
+		t.Errorf("output:\n%s", out.String())
+	}
+	if err := Stop(second, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !proc.Alive(first.Services[0].PID) {
+		t.Error("stopping the reusing run must leave the original server alone")
 	}
 }

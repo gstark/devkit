@@ -27,7 +27,7 @@ Pin it in the consumer repo's `mise.toml` next to the servers it runs:
 | `devkit env [--profile P] [--format sh\|json]` | Print the env for this checkout: ports, service settings, database. `eval "$(devkit env)"` in `just dev`. |
 | `devkit slot [claim\|release]` | Show, take, or give back this worktree's slot. Slot N moves every port by N*10. |
 | `devkit services up` | Run the enabled services in the foreground. One Procfile line. |
-| `devkit services start --profile P [--ephemeral] --owner $$` | Start them detached and print their env and pid file. Test runs use `--ephemeral`. |
+| `devkit services start --profile P [--ephemeral] [--only s3] [--reuse] --owner $$` | Start them detached and print their env and pid file. Test runs use `--ephemeral`. `--reuse` leaves a server that already answers alone, for a one-off command next to a running `just dev`. |
 | `devkit services stop PID_FILE \| --stale \| --all` | Stop them. |
 | `devkit services doctor` | Check the binaries are installed. |
 | `devkit db pristine [--yes]` | Rebuild the pristine database with the manifest's build hook. |
