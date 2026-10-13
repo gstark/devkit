@@ -255,14 +255,16 @@ func (c Context) Setup(reset bool) error {
 	}
 	defer shared.Release()
 
+	// The slot first: the database build hook may need this worktree's own
+	// service ports, which `devkit env` reads from the env file.
+	claimed, err := slot.Claim(c.Manifest, c.Worktree, c.Out)
+	if err != nil {
+		return err
+	}
 	if c.Manifest.Database != nil {
 		if err := c.cloneLocked(reset); err != nil {
 			return err
 		}
-	}
-	claimed, err := slot.Claim(c.Manifest, c.Worktree, c.Out)
-	if err != nil {
-		return err
 	}
 	fmt.Fprintf(c.Out, "Done. This worktree is slot %d", claimed)
 	if c.Manifest.Database != nil {

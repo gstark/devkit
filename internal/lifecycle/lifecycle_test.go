@@ -62,7 +62,9 @@ func TestCloneDropAndComplete(t *testing.T) {
 			Env:      "TEST_DATABASE",
 			Pristine: "devkit_lifecycle_test_pristine",
 			Worktree: "devkit_lifecycle_test_wt_{slug}",
-			Build: `psql -X -q -d postgres -c "drop database if exists \"$DEVKIT_DATABASE\" with (force)" && createdb "$DEVKIT_DATABASE" ` +
+			// The hook sees the slot's port: setup claims the slot before it builds.
+			Build: `test "$(sed -n 's/^APP_PORT=//p' .env.test.local)" = 43010 && ` +
+				`psql -X -q -d postgres -c "drop database if exists \"$DEVKIT_DATABASE\" with (force)" && createdb "$DEVKIT_DATABASE" ` +
 				`&& psql -X -q -d "$DEVKIT_DATABASE" -c "create table marks(id int); insert into marks values (1), (2)" ` +
 				`&& mkdir -p storage && echo sample > storage/sample.txt`,
 			Migrate:         `echo "migrated $TEST_DATABASE" > tmp/migrated`,
