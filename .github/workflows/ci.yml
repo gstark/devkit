@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_USER: runner
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U runner" --health-interval 2s --health-timeout 5s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGUSER: runner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # The services tests run against the real binaries, pinned like a
+      # consumer repo would pin them.
+      - uses: jdx/mise-action@v2
+        with:
+          install: true
+      - run: sudo apt-get install -y postgresql-client
+      - run: gofmt -l . && test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test ./... -count=1

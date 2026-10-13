@@ -1,0 +1,4 @@
+# Binaries the integration tests start. A consumer repo pins the same two.
+[tools]
+"github:livekit/livekit" = { version = "1.13.9", os = ["linux"] }
+"github:rustfs/rustfs" = "1.0.1"

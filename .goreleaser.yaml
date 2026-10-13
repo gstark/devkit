@@ -1,0 +1,30 @@
+# GoReleaser publishes a GitHub release per tag. Repos pin it with
+#   "github:gstark/devkit" = "0.1.0"
+# in mise.toml; mise picks the asset by OS and architecture from its name.
+version: 2
+
+project_name: devkit
+
+builds:
+  - main: .
+    binary: devkit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/gstark/devkit/internal/cmd.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: git
