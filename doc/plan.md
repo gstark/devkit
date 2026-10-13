@@ -1,7 +1,7 @@
 # devkit: shared local services, port slots, and databases for worktrees
 
 Date: 2026-10-13
-Status: phases 0 to 3 built and tested on 2026-10-13 (uncommitted, no GitHub release yet). Phases 4 to 6 not started. See "Implementation notes" at the end for where the build differs from the design below.
+Status: phases 0 to 3 built, tested, and released as v0.1.0 on 2026-10-13 (private repo `gstark/devkit`; CI and Release green; `mise install` of the asset proven on macOS). Phases 4 to 6 not started. See "Implementation notes" at the end for where the build differs from the design below.
 Repository: `gstark/devkit` (this repo)
 First consumers: `dds/dashboard/app`, then `o4s/observe4success`
 
