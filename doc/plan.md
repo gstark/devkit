@@ -1,7 +1,7 @@
 # devkit: shared local services, port slots, and databases for worktrees
 
 Date: 2026-10-13
-Status: phases 0 to 3 built, tested, and released as v0.1.0 on 2026-10-13 (public repo `gstark/devkit`; CI and Release green; `mise install` of the asset proven on macOS). Phases 4 to 6 not started. See "Implementation notes" at the end for where the build differs from the design below.
+Status: phases 0 to 3 built, tested, and released as v0.1.0 on 2026-10-13 (public repo `gstark/devkit`; CI and Release green; `mise install` of the asset proven on macOS). Phase 4 (dashboard) done on 2026-10-13 on the dashboard branch `devkit`, UNCOMMITTED there; v0.1.2 is what it pins. Phases 5 and 6 not started. See "Implementation notes" at the end for where the build differs from the design below.
 Repository: `gstark/devkit` (this repo)
 First consumers: `dds/dashboard/app`, then `o4s/observe4success`
 
@@ -382,3 +382,34 @@ database. `go test ./...` covers the same with Postgres and the binaries
 present; the gated tests skip without them. `goreleaser release --snapshot`
 builds all four targets. Not yet done: pushing to `gstark/devkit`, tagging
 `v0.1.0`, and proving `mise install` of the released asset.
+
+## Phase 4 results (2026-10-13)
+
+Dashboard branch `devkit`, 33 files changed, +274/-1344, four new files
+(`devkit.toml`, `test/support/devkit_services.rb`, `spa/test-support/devkit.ts`,
+`scripts/ci/install-dev-services`), twelve deleted (the worktree script, the
+three bash libs, the two Procfile wrappers, the two CI installers, the Ruby
+supervisor, the two Vitest server setups and their process helper).
+
+Verified: full Rails suite (8375 runs, 0 failures), SPA services project (21
+tests), `just acceptance --yes e2e/video-calls/room.spec.ts` with real rooms,
+`devkit db pristine --yes` through the seed hook with its own RustFS, `devkit
+setup` + `devkit complete` in a scratch worktree (slot 4, 130 accounts in the
+clone), a live `just dev` with the `services` Procfile line, and
+`just stop-servers` finding the devkit services.
+
+Found along the way:
+
+- The rustfs preset's `AWS_REGION` export changed `Secrets[:aws_region]`;
+  the dashboard manifest unsets it (`AWS_REGION = ""`).
+- Three video-calls tests hardcoded the old `test_api_key`; they now use
+  `LivekitTestServer::API_KEY`.
+- `devkit setup` had to claim the slot before the database clone, because the
+  dashboard's build hook starts RustFS on the slot's port (v0.1.2).
+- `--reuse` and `--only` on `services start` exist for `just seed-dev-db`,
+  which borrows a running `just dev` RustFS or starts one for the load (v0.1.1).
+- Acceptance uses `--ephemeral` for its S3 and LiveKit, so only the SPA and
+  Rails ports are fixed (4710/4711 plus the slot); the fixed 4712-4715 ports
+  are gone.
+- 22 stale `dds_dashboard_wt_t3code_*` databases from old worktrees sit on
+  the dev Postgres; `devkit complete` would have dropped them. Not touched.
