@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -54,7 +55,7 @@ func Start(ctx context.Context, plan *resolve.Plan, root, pidPath string, owner 
 		pidFile.Services = append(pidFile.Services, started)
 		if err := proc.WaitReady(ctx, service.ReadyURL, func() bool { return proc.Alive(process.Pid) }); err != nil {
 			stopAll(pidFile, out)
-			return nil, fmt.Errorf("%s %s. See %s", service.Name, err, logPath)
+			return nil, fmt.Errorf("%s %s. See %s%s", service.Name, err, logPath, logTail(logPath))
 		}
 		if err := postStart(ctx, service); err != nil {
 			stopAll(pidFile, out)
@@ -239,4 +240,17 @@ func requireBinary(service *resolve.Service) error {
 
 func stopAll(pidFile *proc.PidFile, out io.Writer) {
 	_ = Stop(pidFile, out)
+}
+
+// logTail returns the last lines of a server log, for an error message.
+func logTail(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) > 8 {
+		lines = lines[len(lines)-8:]
+	}
+	return "\n  " + strings.Join(lines, "\n  ")
 }

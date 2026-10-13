@@ -29,6 +29,10 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           install: true
+      # mise-action puts shims on PATH. A shim resolves the tool from the
+      # working directory's mise.toml, and the tests start servers from
+      # temporary directories, so put the real binaries on PATH instead.
+      - run: mise bin-paths | while read -r dir; do echo "$dir" >> "$GITHUB_PATH"; done
       - run: sudo apt-get install -y postgresql-client
       - run: gofmt -l . && test -z "$(gofmt -l .)"
       - run: go vet ./...
