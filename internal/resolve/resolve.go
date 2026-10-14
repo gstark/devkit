@@ -244,6 +244,11 @@ func (o Options) service(name string, plan *Plan, base Vars) (*Service, error) {
 		With("bucket", spec.Bucket)
 
 	var err error
+	// The container name first, so the command can name it.
+	if service.ContainerName, err = vars.Expand(spec.ContainerName); err != nil {
+		return nil, fmt.Errorf("services.%s.container_name: %w", name, err)
+	}
+	vars = vars.With("container_name", service.ContainerName)
 	if service.Command, err = vars.ExpandAll(spec.Command); err != nil {
 		return nil, fmt.Errorf("services.%s.command: %w", name, err)
 	}
@@ -252,9 +257,6 @@ func (o Options) service(name string, plan *Plan, base Vars) (*Service, error) {
 	}
 	if service.ReadyURL, err = vars.Expand(spec.ReadyURL); err != nil {
 		return nil, fmt.Errorf("services.%s.ready_url: %w", name, err)
-	}
-	if service.ContainerName, err = vars.Expand(spec.ContainerName); err != nil {
-		return nil, fmt.Errorf("services.%s.container_name: %w", name, err)
 	}
 	if spec.WebhookURL != nil {
 		if service.WebhookURL, err = vars.Expand(*spec.WebhookURL); err != nil {

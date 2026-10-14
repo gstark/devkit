@@ -178,3 +178,22 @@ func TestEphemeralPicksFreePortsAndTempDirs(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerNameIsATemplateVariable(t *testing.T) {
+	m := sampleManifest()
+	m.Services["gotenberg"] = manifest.Service{
+		DefaultPort: 3005, Ports: manifest.PortCount{TCP: 1},
+		ContainerName: "app-gotenberg-{port}",
+		Command:       []string{"docker", "run", "--name", "{container_name}", "img"},
+		ReadyURL:      "http://127.0.0.1:{port}/health",
+	}
+	plan, err := Resolve(Options{Manifest: m, Slot: 1, ShellEnv: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range plan.Services {
+		if s.Name == "gotenberg" && (s.ContainerName != "app-gotenberg-3015" || s.Command[3] != "app-gotenberg-3015") {
+			t.Errorf("container name: %q command %v", s.ContainerName, s.Command)
+		}
+	}
+}

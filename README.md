@@ -6,7 +6,9 @@ URL), and its own Postgres database cloned from a pristine template. A
 `devkit.toml` at the repo root declares what the project needs; `just` recipes,
 Procfiles, and test runners call `devkit`.
 
-The design and the migration plan for the first two consumers are in
+To bring devkit into a repository, follow [doc/adopting.md](doc/adopting.md):
+the step-by-step, the `devkit.toml` field reference, and the gotchas the first
+consumers hit. The design and the migration plan for those consumers are in
 [doc/plan.md](doc/plan.md).
 
 ## Install
