@@ -1,7 +1,7 @@
 # devkit: shared local services, port slots, and databases for worktrees
 
 Date: 2026-10-13
-Status: phases 0 to 3 built, tested, and released as v0.1.0 on 2026-10-13 (public repo `gstark/devkit`; CI and Release green; `mise install` of the asset proven on macOS). Phase 4 (dashboard) done on 2026-10-13 on the dashboard branch `devkit`, UNCOMMITTED there; v0.1.2 is what it pins. Phase 6 (skill) done on 2026-10-13: `~/.agents/skills/devkit/SKILL.md` points at `doc/adopting.md`. Phase 5 (observe4success) not started. See "Implementation notes" at the end for where the build differs from the design below.
+Status: phases 0 to 3 built, tested, and released as v0.1.0 on 2026-10-13 (public repo `gstark/devkit`; CI and Release green; `mise install` of the asset proven on macOS). Phase 4 (dashboard) done on 2026-10-13 on the dashboard branch `devkit`, UNCOMMITTED there; v0.1.2 is what it pins. Phase 6 (skill) done on 2026-10-13: `~/.agents/skills/devkit/SKILL.md` points at `devkit docs adopting`. Phase 5 (observe4success) done on 2026-10-13 on its branch `devkit`, UNCOMMITTED there; it pins v0.1.5. Every phase is done. See "Implementation notes" at the end for where the build differs from the design below.
 Repository: `gstark/devkit` (this repo)
 First consumers: `dds/dashboard/app`, then `o4s/observe4success`
 
@@ -413,3 +413,44 @@ Found along the way:
   are gone.
 - 22 stale `dds_dashboard_wt_t3code_*` databases from old worktrees sit on
   the dev Postgres; `devkit complete` would have dropped them. Not touched.
+
+## Phase 5 results (2026-10-13)
+
+observe4success branch `devkit`, 8 files changed plus 4 new, +148/-561.
+New: `devkit.toml`, `mise.toml` (the repo had none; Ruby comes from the
+Gemfile and Node from a local mise file), `script/dev/load-acceptance-seed`
+(the build hook, wrapping the existing Beach County loader),
+`script/ci/install-dev-services`. Deleted: `script/dev/worktree`,
+`e2e/compose.yml`. Gotenberg is a generic Docker service with a
+`container_name`; its allow-list names the Rails and S3 ports through
+`{ports.web}` and `{services.s3.port}`. The bucket is `public_read` because
+Gotenberg fetches the HTML by URL.
+
+devkit v0.1.5 came out of this conversion: `{services.<name>.port}` (ports are
+picked for every service before any command expands), rustfs `public_read`,
+and `setup.env` for the seed login keys.
+
+A design choice worth knowing: the developer's shell carries real AWS keys and
+a hosted `GOTENBERG_HOST` (from `~/dev/o4s/mise.local.toml` and
+`.env.development.local`), so the services use `skip_if_set` on
+`AWS_ACCESS_KEY_ID` and `GOTENBERG_HOST`. With those present, `just dev` keeps
+the shared S3 and hosted Gotenberg and devkit starts nothing. Without them
+(CI, a fresh machine, or after removing the keys) devkit runs local ones.
+`script/dev/dev` exports the two keys from the env file so the rule also
+holds for a developer without the mise env. `just acceptance --pdf` unsets
+them and always gets ephemeral local servers.
+
+Verified: `just acceptance --yes --pdf --e2e pdf/` passes (3 PDF snapshot
+specs; the first run wrote the gitignored darwin references, the second
+compared against them pixel for pixel), `devkit db pristine --yes` through
+the seed hook, `devkit setup` + `devkit complete` in a scratch worktree
+(slot 1, 43 users in the clone, seed login written, clean teardown), and
+`just dev` bringing RustFS and Gotenberg up through the `services` Procfile
+line with a clean `overmind quit` (no listeners, no containers).
+
+Not verified: Rails itself under `just dev` in the agent's shell. puma ran in
+cluster mode because `~/dev/o4s/mise.local.toml` sets `WEB_CONCURRENCY=1`,
+and the forked worker segfaults in libpq on first connect, the macOS
+fork-safety crash the repo's env file comments on. The same command without
+devkit crashes identically, so it is pre-existing and environmental. RSpec is
+untouched: it stubs S3 and Gotenberg and needs no adapter.
