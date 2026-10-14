@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -45,8 +46,9 @@ func ephemeralPlan(t *testing.T, services map[string]manifest.Service) *resolve.
 
 func TestRustfsStartCreatesBucketsAndStopCleansUp(t *testing.T) {
 	skipWithout(t, "rustfs")
+	yes := true
 	plan := ephemeralPlan(t, map[string]manifest.Service{
-		"s3": {Preset: manifest.PresetRustfs, DefaultPort: 9000, Buckets: []string{"one", "two"}},
+		"s3": {Preset: manifest.PresetRustfs, DefaultPort: 9000, Buckets: []string{"one", "two"}, PublicRead: &yes},
 	})
 	pidPath := filepath.Join(plan.Services[0].DataDir, "..", "s3.pids.json")
 	var out bytes.Buffer
@@ -70,6 +72,10 @@ func TestRustfsStartCreatesBucketsAndStopCleansUp(t *testing.T) {
 	cors, err := client.GetBucketCors(context.Background(), &s3.GetBucketCorsInput{Bucket: &service.Buckets[0]})
 	if err != nil || len(cors.CORSRules) != 1 || cors.CORSRules[0].ExposeHeaders[0] != "ETag" {
 		t.Errorf("cors: %v %+v", err, cors)
+	}
+	policy, err := client.GetBucketPolicy(context.Background(), &s3.GetBucketPolicyInput{Bucket: &service.Buckets[0]})
+	if err != nil || !strings.Contains(*policy.Policy, "s3:GetObject") {
+		t.Errorf("public read policy: %v %v", err, policy)
 	}
 	if pidFile.OwnerPID != os.Getppid() {
 		t.Errorf("owner defaults to the parent: %d", pidFile.OwnerPID)

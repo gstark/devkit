@@ -197,3 +197,26 @@ func TestContainerNameIsATemplateVariable(t *testing.T) {
 		}
 	}
 }
+
+func TestServicePortsAreTemplateVariables(t *testing.T) {
+	m := sampleManifest()
+	yes := true
+	m.Services["gotenberg"] = manifest.Service{
+		DefaultPort: 3005, Ports: manifest.PortCount{TCP: 1},
+		Command:  []string{"gotenberg", "--allow={ports.spa}|{services.s3.port}"},
+		ReadyURL: "http://127.0.0.1:{port}/health",
+	}
+	m.Services["s3"] = manifest.Service{Preset: manifest.PresetRustfs, DefaultPort: 9000, PublicRead: &yes}
+	plan, err := Resolve(Options{Manifest: m, Slot: 1, ShellEnv: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range plan.Services {
+		if s.Name == "gotenberg" && s.Command[1] != "--allow=3010|9010" {
+			t.Errorf("command %v", s.Command)
+		}
+		if s.Name == "s3" && !s.PublicRead {
+			t.Error("public_read not carried")
+		}
+	}
+}

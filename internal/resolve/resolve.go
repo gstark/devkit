@@ -67,6 +67,7 @@ type Service struct {
 	ReadyURL      string
 	ContainerName string
 	Buckets       []string
+	PublicRead    bool
 	WebhookURL    string
 	Env           map[string]string
 	Unset         []string
@@ -110,8 +111,25 @@ func Resolve(o Options) (*Plan, error) {
 		plan.addEnv(extra)
 	}
 
+	// Every service's port first, so one service can name another's, such as
+	// Gotenberg's allow-list naming the S3 port.
+	servicePorts := map[string]int{}
 	for _, name := range m.ServiceNames() {
-		service, err := o.service(name, plan, vars)
+		spec := m.Resolve(name, o.Profile)
+		if o.Ephemeral {
+			port, err := ports.FreeBase(spec.Ports.TCP, spec.Ports.UDP)
+			if err != nil {
+				return nil, fmt.Errorf("services.%s: %w", name, err)
+			}
+			servicePorts[name] = port
+		} else {
+			servicePorts[name] = ports.ForSlot(spec.DefaultPort, o.Slot)
+		}
+		vars["services."+name+".port"] = strconv.Itoa(servicePorts[name])
+	}
+
+	for _, name := range m.ServiceNames() {
+		service, err := o.service(name, servicePorts[name], vars)
 		if err != nil {
 			return nil, err
 		}
@@ -197,10 +215,11 @@ func (o Options) baseVars(plan *Plan) Vars {
 	return vars
 }
 
-func (o Options) service(name string, plan *Plan, base Vars) (*Service, error) {
+func (o Options) service(name string, port int, base Vars) (*Service, error) {
 	m := o.Manifest
 	spec := m.Resolve(name, o.Profile)
-	service := &Service{Name: name, Spec: spec, Enabled: true, Ephemeral: o.Ephemeral}
+	service := &Service{Name: name, Spec: spec, Enabled: true, Ephemeral: o.Ephemeral, Port: port}
+	service.PublicRead = spec.PublicRead != nil && *spec.PublicRead
 
 	if listed, ok := o.ShellEnv[EnabledServicesKey]; ok {
 		service.Enabled = contains(strings.Split(listed, ","), name)
@@ -215,11 +234,6 @@ func (o Options) service(name string, plan *Plan, base Vars) (*Service, error) {
 	}
 
 	if o.Ephemeral {
-		port, err := ports.FreeBase(spec.Ports.TCP, spec.Ports.UDP)
-		if err != nil {
-			return nil, fmt.Errorf("services.%s: %w", name, err)
-		}
-		service.Port = port
 		if service.Enabled {
 			dir, err := os.MkdirTemp("", "devkit-"+name+"-")
 			if err != nil {
@@ -229,7 +243,6 @@ func (o Options) service(name string, plan *Plan, base Vars) (*Service, error) {
 			service.ConfigPath = filepath.Join(dir, name+".yaml")
 		}
 	} else {
-		service.Port = ports.ForSlot(spec.DefaultPort, o.Slot)
 		if spec.DataDir != "" {
 			service.DataDir = absolute(m.Root, spec.DataDir)
 		} else {

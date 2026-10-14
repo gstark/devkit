@@ -122,6 +122,11 @@ extra_env = { GOTENBERG_BASE_URL = "http://127.0.0.1:{port}" }
 `container_name` matters: devkit cannot signal a `docker run` process into
 stopping its container, so `stop` runs `docker stop` on that name.
 
+A service may name another's port with `{services.<name>.port}`, as a
+Gotenberg allow-list names the S3 it may fetch from. Ports are picked for every
+service before any command is expanded, so the order of declaration does not
+matter.
+
 ### Profiles
 
 A profile is a run mode: `dev` (the default), `test`, `acceptance`, or any
@@ -376,6 +381,7 @@ each test suite, and a live `just dev`.
 | `data_dir` | | | Data directory for the dev profile, relative to the root. Default `tmp/devkit/<name>-<profile>-data`. Ephemeral runs use a temporary directory. |
 | `bucket` | | `devkit` | rustfs: the bucket to create. Available as `{bucket}`. |
 | `buckets` | | | rustfs: several buckets. Overrides `bucket` for creation. |
+| `public_read` | | | rustfs: let anyone GET objects, through a bucket policy. For a Gotenberg that fetches HTML by URL. |
 | `webhook_url` | | | livekit: the webhook target. Empty string means none. |
 | `loopback_only` | | | livekit: bind and offer 127.0.0.1 only. For test runs on one machine. |
 | `container_name` | | | Docker services: the name `stop` passes to `docker stop`. |
@@ -407,6 +413,7 @@ than a letter or digit replaced by `_`, cut to 40 characters.
 | `install` | Shell commands run from the root before the database clone. |
 | `copy_env_file` | Copy the main checkout's env file when the worktree has none. |
 | `copy_env_keys` | Copy only these keys from the main checkout's env file when the worktree lacks them. |
+| `env` | Keys written to the worktree's env file on setup, replacing earlier values. A seed's login, say. |
 
 ### `[tailscale]`
 
@@ -438,6 +445,7 @@ than a letter or digit replaced by `_`, cut to 40 characters.
 | `{port}` | a service, a named port's `extra_env` | that service's or port's number |
 | `{port+N}` | same | the number plus N |
 | `{ports.<name>}` | anywhere | a named port's number |
+| `{services.<name>.port}` | anywhere | another service's port. Every service's port is picked before any command is expanded. |
 | `{origin.<name>}` | anywhere | the published origin of a named port, else `http://localhost:<port>` |
 | `{bucket}` | a service | the service's `bucket` |
 | `{data_dir}` | a service | the service's data directory |

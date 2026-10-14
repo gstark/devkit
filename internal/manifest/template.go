@@ -8,8 +8,8 @@ import (
 )
 
 // Vars holds the values a template can reference, such as "port",
-// "ports.rails", "origin.spa", "bucket", "slug", "data_dir", "config",
-// "xdg_data", and "root".
+// "ports.rails", "services.s3.port", "origin.spa", "bucket", "slug",
+// "data_dir", "config", "xdg_data", and "root".
 type Vars map[string]string
 
 // With returns a copy of v with one more variable.
@@ -22,7 +22,7 @@ func (v Vars) With(key, value string) Vars {
 	return out
 }
 
-var placeholder = regexp.MustCompile(`\{([a-z_]+(?:\.[a-z_]+)?)(\+\d+)?\}`)
+var placeholder = regexp.MustCompile(`\{([a-z_][a-z0-9_]*(?:\.[a-z0-9_-]+)*)(\+\d+)?\}`)
 
 // Expand replaces every {name} and {name+N} in s. A {name+N} adds N to a
 // numeric variable. An unknown variable is an error, so a typo in a manifest

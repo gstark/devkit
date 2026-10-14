@@ -66,6 +66,7 @@ type Service struct {
 	Buckets       []string           `toml:"buckets"`
 	WebhookURL    *string            `toml:"webhook_url"`
 	LoopbackOnly  *bool              `toml:"loopback_only"`
+	PublicRead    *bool              `toml:"public_read"`
 	ContainerName string             `toml:"container_name"`
 	ExtraEnv      map[string]string  `toml:"extra_env"`
 	Profiles      map[string]Service `toml:"profiles"`
@@ -87,6 +88,9 @@ type Setup struct {
 	Install     []string `toml:"install"`
 	CopyEnvFile bool     `toml:"copy_env_file"`
 	CopyEnvKeys []string `toml:"copy_env_keys"`
+	// Env is written to the worktree's env file on setup, replacing earlier
+	// values: a seed's login, say.
+	Env map[string]string `toml:"env"`
 }
 
 // Tailscale publishes one named port on the tailnet when Flag is "1".
@@ -295,6 +299,9 @@ func merge(base, over Service) Service {
 	}
 	if over.LoopbackOnly != nil {
 		out.LoopbackOnly = over.LoopbackOnly
+	}
+	if over.PublicRead != nil {
+		out.PublicRead = over.PublicRead
 	}
 	if over.ContainerName != "" {
 		out.ContainerName = over.ContainerName

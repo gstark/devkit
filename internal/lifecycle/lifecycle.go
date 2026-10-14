@@ -248,6 +248,11 @@ func (c Context) Setup(reset bool) error {
 	if err := c.copyEnv(); err != nil {
 		return err
 	}
+	if len(c.Manifest.Setup.Env) > 0 {
+		if err := envfile.Update(c.Manifest.EnvFilePath(c.Worktree.Root), c.Manifest.Setup.Env, nil); err != nil {
+			return err
+		}
+	}
 
 	shared, err := c.sharedLock()
 	if err != nil {

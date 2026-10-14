@@ -106,6 +106,14 @@ func ensureBuckets(ctx context.Context, service *resolve.Service) error {
 		if err != nil {
 			return fmt.Errorf("set CORS on %s: %w", bucket, err)
 		}
+		if service.PublicRead {
+			// Anyone may GET objects: a Gotenberg fetching the HTML to print,
+			// say, reaches the bucket by URL with no credentials.
+			policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::%s/*"}]}`, bucket)
+			if _, err := client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{Bucket: aws.String(bucket), Policy: aws.String(policy)}); err != nil {
+				return fmt.Errorf("set public read on %s: %w", bucket, err)
+			}
+		}
 	}
 	return nil
 }

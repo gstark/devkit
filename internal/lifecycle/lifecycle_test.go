@@ -71,7 +71,7 @@ func TestCloneDropAndComplete(t *testing.T) {
 			StorageDir:      "storage",
 			PristineStorage: pristineStorage,
 		},
-		Setup:    manifest.Setup{Install: []string{"mkdir -p tmp && echo installed > tmp/installed"}},
+		Setup:    manifest.Setup{Install: []string{"mkdir -p tmp && echo installed > tmp/installed"}, Env: map[string]string{"LOGIN": "seed@example.com"}},
 		Complete: manifest.Complete{ProcessPatterns: []string{"sleep 7654321"}},
 	}
 	client := db.Client{Out: &bytes.Buffer{}}
@@ -107,6 +107,9 @@ func TestCloneDropAndComplete(t *testing.T) {
 	}
 	if value, _ := envfile.Read(envPath, "APP_PORT"); value != "43010" {
 		t.Errorf("env file port %q", value)
+	}
+	if value, _ := envfile.Read(envPath, "LOGIN"); value != "seed@example.com" {
+		t.Errorf("setup.env not written: %q", value)
 	}
 
 	// A second setup keeps the database: drop a row, then check it stays gone.
@@ -147,6 +150,7 @@ func TestCloneDropAndComplete(t *testing.T) {
 		t.Error("complete must keep the pristine database")
 	}
 	values, _ := envfile.ReadAll(envPath)
+	delete(values, "LOGIN") // setup.env keys stay; they are harmless
 	if len(values) != 0 {
 		t.Errorf("env keys left: %v", values)
 	}
