@@ -46,7 +46,7 @@ func newRoot() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newVersion(), newSlot(), newEnv(), newServices(), newDB(), newSetup(), newComplete(), newTailscale())
+	root.AddCommand(newVersion(), newDocs(), newSlot(), newEnv(), newServices(), newDB(), newSetup(), newComplete(), newTailscale())
 	return root
 }
 

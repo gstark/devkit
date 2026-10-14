@@ -6,7 +6,8 @@ URL), and its own Postgres database cloned from a pristine template. A
 `devkit.toml` at the repo root declares what the project needs; `just` recipes,
 Procfiles, and test runners call `devkit`.
 
-To bring devkit into a repository, follow [doc/adopting.md](doc/adopting.md):
+To bring devkit into a repository, follow [doc/adopting.md](doc/adopting.md)
+(`devkit docs adopting` prints the copy built into the installed binary):
 the step-by-step, the `devkit.toml` field reference, and the gotchas the first
 consumers hit. The design and the migration plan for those consumers are in
 [doc/plan.md](doc/plan.md).
@@ -38,6 +39,7 @@ Pin it in the consumer repo's `mise.toml` next to the servers it runs:
 | `devkit setup [--reset]` | Install, env file, database, slot: everything a fresh worktree needs. |
 | `devkit complete` | Stop this worktree's servers, remove Tailscale handlers, drop its database, release its slot. |
 | `devkit tailscale publish\|off PORT_NAME` | Serve a named port on the tailnet, or stop. |
+| `devkit docs adopting` | Print the adoption guide built into the binary. |
 
 ## Test adapters
 
